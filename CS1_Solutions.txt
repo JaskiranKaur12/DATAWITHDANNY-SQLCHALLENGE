@@ -132,6 +132,176 @@ There are no results to be displayed.
 | B           | sushi        |
 | C           | ramen        |
 
+----- 6. Which item was purchased first by the customer after they became a member?
+
+**Query #1**
+
+    SET search_path = dannys_diner;
+
+There are no results to be displayed.
+
 ---
+**Query #2**
+
+    With TempTable(Customer_id, order_date, product_name)
+    as(
+    Select s.customer_id,s.order_date, m.product_name, Rank() Over (partition by s.Customer_id order by s.order_date) as order_rank
+    from sales s
+    join menu m
+    on s.product_id=m.product_id
+    join members me
+    on s.customer_id=me.customer_id
+    where s.order_date >= me.join_date)
+    
+    Select customer_id, product_name
+    from TempTable where order_rank=1;
+
+| customer_id | product_name |
+| ----------- | ------------ |
+| A           | curry        |
+| B           | sushi        |
+
+----- 7. Which item was purchased just before the customer became a member?
+
+**Query #1**
+
+    SET search_path = dannys_diner;
+
+There are no results to be displayed.
+
+---
+**Query #2**
+
+    With TempTable(Customer_id, order_date, product_name)
+    as(
+    Select s.customer_id,s.order_date, m.product_name, Rank() Over (partition by s.Customer_id order by s.order_date) as order_rank
+    from sales s
+    join menu m
+    on s.product_id=m.product_id
+    join members me
+    on s.customer_id=me.customer_id
+    where s.order_date <me.join_date)
+    
+    Select customer_id, product_name
+    from TempTable where order_rank=1;
+
+| customer_id | product_name |
+| ----------- | ------------ |
+| A           | sushi        |
+| A           | curry        |
+| B           | curry        |
+
+----- 8. What is the total items and amount spent for each member before they became a member?
+
+**Query #1**
+
+    SET search_path = dannys_diner;
+
+There are no results to be displayed.
+
+---
+**Query #2**
+
+    With Table1(customer_id,order_date, join_date, product_name, price)
+    as
+    (
+    Select s.customer_id,s.order_date, m.join_date, me.product_name, me.price
+    from sales s
+    full join members m
+    on s.customer_id=m.customer_id
+    join menu me
+    on s.product_id=me.product_id
+    )
+    
+    Select customer_id, count(product_name), sum(price)
+    from Table1
+    where order_date<join_date or join_date IS NULL
+    group by customer_id;
+
+| customer_id | count | sum |
+| ----------- | ----- | --- |
+| B           | 3     | 40  |
+| C           | 3     | 36  |
+| A           | 2     | 25  |
+
+----- 9.  If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
+
+**Query #1**
+
+    SET search_path = dannys_diner;
+
+There are no results to be displayed.
+
+---
+**Query #2**
+
+    With TempTable(customer_id, Points)
+    as(
+    Select s.customer_id,
+    CASE 
+          WHEN (m.product_name LIKE 'sushi') THEN m.price*20
+          ELSE m.price*10
+    END As points
+    from sales s
+    join menu m
+    on s.product_id=m.product_id)
+     
+    Select customer_id, sum(points) from TempTable
+    group by customer_id;
+
+| customer_id | sum |
+| ----------- | --- |
+| B           | 940 |
+| C           | 360 |
+| A           | 860 |
+
+----- 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?
+
+**Query #1**
+
+    SET search_path = dannys_diner;
+
+There are no results to be displayed.
+
+---
+**Query #2**
+
+    With TempTable(customer_id, points)
+    as
+    (
+    Select s.customer_id,
+    CASE   
+      WHEN (s.order_date Between me.join_date and (me.join_date+7))
+      	THEN m.price*20   
+      WHEN (m.product_name LIKE 'sushi') 
+      	THEN m.price*20                                 
+      ELSE m.price*10
+    END As points
+    from sales s
+    join menu m
+    on s.product_id=m.product_id
+    join members me
+    on s.customer_id=me.customer_id
+    where s.order_date <= '2021-01-31'
+    )
+    Select customer_id, sum(points) as Total_Points
+    from TempTable
+    group by customer_id;
+
+| customer_id | total_points |
+| ----------- | ------------ |
+| A           | 1370         |
+| B           | 940          |
+
+---
+
+[View on DB Fiddle](https://www.db-fiddle.com/f/2rM8RAnq7h5LLDTzZiRWcd/138)
+
+
+
+
+
+
+
 
 
